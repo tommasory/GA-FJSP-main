@@ -10,50 +10,49 @@ import math
 import sys
 import matplotlib.pyplot as plt
 
-# le o arquivo excel contendo o dataset (mudar sheet name para mudar input)
-SHEET_NAME = 2 # de 0 a 7
+# lea el archivo de Excel que contiene el conjunto de datos 
+raw_df = pd.read_excel('data/p1.xlsx')
 LOT_NUMBER = 1 # 1, 2 ou 3
-raw_df = pd.read_excel('Dataset.xlsx', sheet_name=SHEET_NAME)
 
-# dataframe contendo todos os jobs
+# marco de datos que contiene todos los trabajos
 jobs_df = raw_df[['lot', 'operation', 'machine', 'proc-time']]
 jobs_df = jobs_df.dropna()
 jobs_df[['lot', 'operation', 'machine']] = jobs_df[['lot', 'operation', 'machine']].astype(int)
 jobs_df.head()
 
-# alguns parametros dos jobs a serem realizados
+# algunos parámetros de los trabajos a realizar
 LOTS = jobs_df['lot'].nunique()
 OPERATIONS = jobs_df['operation'].nunique()
 MACHINES = jobs_df['machine'].nunique()
 JOBS = len(jobs_df.index)
 
-print('Jobs: ' + str(JOBS))
-print('Lots: ' + str(LOTS))
+print('Trabajos: ' + str(JOBS))
+print('Lotes: ' + str(LOTS))
 print('Operations: ' + str(OPERATIONS))
-print('Machines: ' + str(MACHINES))
+print('Máquinas: ' + str(MACHINES))
 
-# dataframe com tamanho de lotes
+# marco de datos con tamaño de lote
 lots_size_df = raw_df[['lot.1', 'lotSize_1', 'lotSize_2', 'lotSize_3']]
 lots_size_df = lots_size_df.dropna()
 lots_size_df = lots_size_df.rename(columns={'lot.1':'lot'})
 lots_size_df[['lot', 'lotSize_1', 'lotSize_2', 'lotSize_3']] = lots_size_df[['lot', 'lotSize_1', 'lotSize_2', 'lotSize_3']].astype(int)
 lots_size_df.head()
 
-# responsavel por consertar individuo
-# 1. retira operacoes repetidas, dando prioridade a ordem de aparicao no cromossomo
-# 2. garante que operacoes obedecam os pre requisitos, dando prioridade a ordem de aparicao no cromossomo
+# responsable de arreglar individuo
+# 1. elimina operaciones repetidas, dando prioridad al orden de aparición en el cromosoma
+# 2. asegura que las operaciones obedezcan los requisitos previos, dando prioridad al orden de aparición en el cromosoma
 def fix_individual(individual):
 
-  # cria um dataframe para representacao do individuo original
+  # crear un marco de datos para representar al individuo original
   individual_df = pd.DataFrame(columns=['lot','operation','machine'])
 
-  # preenche o dataframe do individuo original
+  # complete el marco de datos del individuo original
   for i in individual:
     lot = jobs_df.loc[i, 'lot']
     operation = jobs_df.loc[i, 'operation']
     machine = jobs_df.loc[i, 'machine']
 
-    # checa se operacao ja esta no dataframe do individuo
+    # verificar si la operación ya está en el marco de datos del individuo
     is_already = not individual_df[(individual_df['lot'] == lot) & (individual_df['operation'] == operation)].empty
     if(is_already):
       continue
@@ -61,10 +60,10 @@ def fix_individual(individual):
     individual_df.loc[i, ['lot', 'operation', 'machine']] = lot, operation, machine
   individual_df = (individual_df.reset_index()).drop('index', axis=1)
   
-  # cria um dataframe para representacao do individuo consertado
+  # crear un marco de datos para representar al individuo reparado
   fixed_df = pd.DataFrame(columns=['lot','operation','machine'])
 
-  # conserta o individuo
+  # arreglar al individuo
   for i in individual_df.index:
 
     if(not (i in individual_df.index)):
@@ -74,41 +73,41 @@ def fix_individual(individual):
     operation = individual_df.loc[i, 'operation']
     machine = individual_df.loc[i, 'machine']
 
-    # checa se a operacao deste lote ja esta no dataframe
+    # verificar si esta operación por lotes ya está en el marco de datos
     is_already = not fixed_df[(fixed_df['lot'] == lot) & (fixed_df['operation'] == operation) & (fixed_df['machine'] == machine)].empty
     if(is_already):
       continue
 
-    # verificar se esta operacao pode ser realizada
+    # verificar si esta operación se puede realizar
     prev_lot_op = fixed_df.loc[fixed_df['lot'] == lot]['operation'].max()
 
     if(math.isnan(prev_lot_op)):
       prev_lot_op = 0
 
-    # operacao nao pode ser realizada, pre-requisitos tem que ser realizados antes
+    # no se puede realizar la operación, se deben realizar los requisitos previos antes
     if(operation - prev_lot_op != 1):
 
-      # procura os pre-requisitos
+      # buscar requisitos previos
       lot_req_op = (individual_df.loc[(individual_df['lot'] == lot) & 
                                       (individual_df['operation'] < operation)]).sort_values(by='operation', ascending=True)
           
       indexes = lot_req_op.index.values
     
-      # retira os pre-requisitos do dataframe do individuo original
+      # eliminar los requisitos previos del marco de datos del individuo original
       individual_df = individual_df.drop(indexes)
 
-      # adiciona os pre-requisitos no dataframe consertado
+      # agregar requisitos previos al marco de datos fijo
       fixed_df = (fixed_df.append(lot_req_op, ignore_index=True))
 
-    # adiciona a operacao no dataframe do individuo consertado
+    # agregar la operación al marco de datos del individuo fijo
     fixed_lst = [[lot, operation, machine]]
     df = pd.DataFrame(fixed_lst, columns = ['lot', 'operation', 'machine'])
     fixed_df = fixed_df.append(df, ignore_index=True)
 
-    # retira a operacao do dataframe do individuo
+    # eliminar la operación de marco de datos individual
     individual_df = individual_df.drop(i)
     
-  # preenche o individuo consertado de acordo com o dataframe
+  # llenar el individuo construido de acuerdo con el marco de datos
   fixed_individual = []
   for i in fixed_df.index:    
     lot = fixed_df.loc[i, 'lot']
@@ -130,13 +129,13 @@ def fix_individual(individual):
 
 def decode(individual):
 
-  # acerta a ordem dos indices de acordo com ordem das operacoes
+  # establecer el orden de los índices según el orden de las operaciones
   individual_fixed = fix_individual(individual)
 
-  # cria dataframe para indicar alocacao das operacoes nas maquinas
+  # crear marco de datos para indicar la aplicación de operaciones en máquinas
   schedule_df = pd.DataFrame(columns=['lot','operation','machine','start','finish'])
 
-  # preenche todo dataframe com as informacoes do individuo
+  # llenar todo el marco de datos con la información del individuo
   for i in individual_fixed:
 
     lot = jobs_df.loc[i, 'lot']
@@ -149,25 +148,18 @@ def decode(individual):
 
     lot_size = lots_size_df.loc[(lots_size_df['lot'] == lot)].reset_index().loc[0, 'lotSize_{}'.format(LOT_NUMBER)]
 
-    # verifica qual o final da ultima operacao da maquina
+    # comprobar el final de la última operación de la máquina
     last_finish_machine = schedule_df.loc[schedule_df['machine'] == machine]['finish'].max()
     if(math.isnan(last_finish_machine)):
       last_finish_machine = 0
 
-    # verifica quando foi o final da ultima operacao do lote
+    # verificar cuándo fue el final de la última operación por lotes
     last_finish_prev_op = schedule_df.loc[schedule_df['lot'] == lot]['finish'].max()
     if(math.isnan(last_finish_prev_op)):
       last_finish_prev_op = 0
 
-    # a operacao vai iniciar apos a maquina ficar livre e a operacao anterior do lote terminar
+    # la operación comenzará después de que la máquina esté libre y finalice la operación anterior del lote
     start = max(last_finish_machine, last_finish_prev_op)
-
-    # adiciona operacao no dataframe
-    #schedule_df.loc[j, 'lot'] = lot
-    #schedule_df.loc[j, 'operation'] = operation
-    #schedule_df.loc[j, 'machine'] = machine
-    #schedule_df.loc[j, 'start'] = start
-    #schedule_df.loc[j, 'finish'] = start + proc_time*lot_size
 
     schedule_lst = [[lot, operation, machine, start, start+proc_time*lot_size]]
     df = pd.DataFrame(schedule_lst, columns = ['lot', 'operation', 'machine', 'start', 'finish'])
@@ -179,29 +171,28 @@ def gantt(individual):
   schedule_df = decode(individual)
   makespan = objective_function(individual)[0]
 
-  # Declaring a figure "gnt" 
+  # Declarar una figura "gnt"
   fig, gnt = plt.subplots(figsize=(20,5)) 
     
-  # Setting Y-axis limits
+  # Configuración de los límites del eje Y
   step = 20 
   y_lim = MACHINES*step
   gnt.set_ylim(0, y_lim)
 
-  # Setting X-axis limits 
+  # Configuración de los límites del eje X 
   gnt.set_xlim(0, makespan) 
     
-  # Setting labels for x-axis and y-axis 
+  # Establecer etiquetas para el eje x y el eje y
   gnt.set_xlabel('Time') 
   gnt.set_ylabel('Machine') 
     
   y_ticks = [y for y in range(int(step/2), y_lim, step)] 
   gnt.set_yticks(y_ticks) 
 
-  # Labelling tickes of y-axis
+  # Etiquetado de ticks del eje y
   y_labels =  ['M'+str(y+1) for y in range(MACHINES)]
   gnt.set_yticklabels(y_labels) 
-    
-  # Setting graph attribute 
+
   # gnt.grid(True) 
 
   color_map = {1: 'tab:blue', 
@@ -236,33 +227,34 @@ def gantt(individual):
                       va='center',
                       color='white',
                     )
+  plt.show()
 
-# Função Objetivo igual a ultima finalizacao na programacao
+# Función objetivo igual a la última finalización en la programación
 def objective_function(individual):
   schedule_df = decode(individual)
   makespan = schedule_df['finish'].max()
   return (makespan),
 
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))        # função objetivo: nome, tipo(f.o.), peso de cada objetivo (no caso só um objetivo)
-creator.create("Individual", list,  fitness=creator.FitnessMin)   # indivíduo
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+creator.create("Individual", list,  fitness=creator.FitnessMin)
+
 
 toolbox = base.Toolbox()
-
 toolbox.register("indices", random.sample, range(JOBS), JOBS)
 
-# Inicializador de indivíduo e população
+# Inicializador individual y de población
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)                  # lista de indivíduos
 
-# Inicializador de operadores
-toolbox.register("evaluate", objective_function)                              # função objetivo
+# Operador inicializador
+toolbox.register("evaluate", objective_function) # función objetiva
 toolbox.register("mate", tools.cxUniformPartialyMatched, indpb=0.05)
 toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=5)
 
-pop = toolbox.population(n=50)                            # inicialização da pop
-hof = tools.HallOfFame(1)                                 # melhor indivíduo
-stats = tools.Statistics(lambda ind: ind.fitness.values)  # estatísticas
+pop = toolbox.population(n=50)                            # inicio emergente
+hof = tools.HallOfFame(1)                                 # mejor chico
+stats = tools.Statistics(lambda ind: ind.fitness.values)  # Estadísticas
 stats.register("avg", np.mean)
 stats.register("std", np.std)
 stats.register("min", np.min)
@@ -275,14 +267,15 @@ plt.plot(gen, min)
 plt.plot(gen, avg)
 plt.xlabel('generation')
 plt.legend(['minimum makespan', 'average makespan'])
+plt.show()
 
-# Melhor solução
+# mejor solución
 print("Melhor Indivíduo:")
 print(hof[0])
 print(decode(hof[0]))
 print(decode(hof[0])['finish'].max())
 
-# Melhor resultado da função objetivo
+# Mejor resultado de la función objetivo
 print("Melhor Resultado da Função Objetivo:")
 print(objective_function(hof[0])[0])
 gantt(hof[0])
