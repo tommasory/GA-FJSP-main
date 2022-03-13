@@ -70,7 +70,7 @@ class Tools:
     y_labels =  ['M'+str(y+1) for y in range(self.machines)]
     gnt.set_yticklabels(y_labels) 
 
-    # gnt.grid(True) 
+    gnt.grid(True) 
 
     color_map = {1: 'tab:blue', 
                 2: 'tab:orange', 
@@ -111,6 +111,7 @@ class Tools:
     lot_number = 1
     # establecer el orden de los índices según el orden de las operaciones
     individual_fixed = self.fix_individual(individual)
+    
 
     # crear marco de datos para indicar la aplicación de operaciones en máquinas
     schedule_df = pd.DataFrame(columns=['lot','operation','machine','start','finish'])

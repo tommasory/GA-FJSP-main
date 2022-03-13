@@ -8,7 +8,7 @@ from tools import Tools
 
 
 
-var_tools = Tools('data/p3.xlsx')
+var_tools = Tools('data/p1.xlsx')
 
 print('Trabajos: ' + str(var_tools.jobs))
 print('Lotes: ' + str(var_tools.lots))
@@ -22,14 +22,12 @@ creator.create("Individual", list,  fitness=creator.FitnessMin)
 
 toolbox = base.Toolbox()
 toolbox.register("indices", random.sample, range(var_tools.jobs), var_tools.jobs)
-
-# Inicializador individual y de población
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)                  # lista de indivíduos
 
 # Operador inicializador
 toolbox.register("evaluate", var_tools.objective_function) # función objetivo
-toolbox.register("mate", tools.cxUniformPartialyMatched, indpb=0.05)
+toolbox.register("mate", tools.cxUniform, indpb=0.05)
 toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=5)
 
@@ -50,8 +48,10 @@ print("Mejor individuo:")
 print(hof[0])
 print(var_tools.decode(hof[0]))
 print(var_tools.decode(hof[0])['finish'].max())
+print('-  '*50)
 
 # Mejor resultado de la función objetivo
 print("Mejor resultado de la función objetivo:")
 print(var_tools.objective_function(hof[0])[0])
 var_tools.gantt(hof[0])
+print('-  '*50)
